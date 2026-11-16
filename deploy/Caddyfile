@@ -1,0 +1,25 @@
+# HTTPS reverse proxy. Caddy obtains and renews Let's Encrypt certificates automatically
+# once DOMAIN's DNS A record points at this server and ports 80/443 are open.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	# Compress pages, scripts and JSON — but never the chat's text/event-stream responses,
+	# which must reach the browser token by token.
+	encode zstd gzip {
+		match {
+			header Content-Type text/html*
+			header Content-Type text/css*
+			header Content-Type text/plain*
+			header Content-Type application/javascript*
+			header Content-Type application/json*
+			header Content-Type image/svg+xml*
+		}
+	}
+
+	reverse_proxy app:4000 {
+		# Forward streamed answers immediately instead of buffering them.
+		flush_interval -1
+	}
+}

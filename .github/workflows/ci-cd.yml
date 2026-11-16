@@ -1,0 +1,172 @@
+# CI/CD: every push and pull request is type-checked, tested and built.
+# Pushes to main additionally build a Docker image (GitHub Container Registry) and deploy it to
+# the VPS over SSH — once the repository variable DEPLOY_ENABLED is set to "true".
+# Setup guide: docs/HOSTINGER-VPS.md
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24"
+  MONGOMS_DISABLE_POSTINSTALL: "1"
+  # Keep the test MongoDB binary outside node_modules (wiped by npm ci) so the cache below works.
+  MONGOMS_DOWNLOAD_DIR: /home/runner/.cache/mongodb-binaries
+
+jobs:
+  test:
+    name: Typecheck, test & build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Cache MongoDB binaries used by the test suite
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: mongodb-binaries-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Server and widget tests
+        run: npm test
+
+      - name: Build widget, server and dashboard
+        run: npm run build
+
+      - name: Browser end-to-end test (widget embedded on a plain HTML page)
+        run: npm run test:e2e -w widget
+        env:
+          BROWSER_PATH: /usr/bin/google-chrome
+
+      - name: Validate deployment files (Compose, Caddyfile, scripts)
+        run: |
+          printf '%s\n' DOMAIN=ci.example.com ACME_EMAIL=ci@example.com MONGO_USER=ci MONGO_PASSWORD=ci \
+            JWT_SECRET=ci ENCRYPTION_KEY=ci APP_IMAGE=ghcr.io/example/app APP_TAG=ci > deploy/.env
+          docker compose -f deploy/docker-compose.yml config --quiet
+          rm deploy/.env
+          docker run --rm -e DOMAIN=ci.example.com -e ACME_EMAIL=ci@example.com \
+            -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2 \
+            caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          for f in deploy/*.sh; do bash -n "$f"; done
+
+  image:
+    name: Build & push Docker image
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Image name
+        id: meta
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+        run: |
+          docker buildx create --use --name ci-builder > /dev/null
+          docker buildx build . --push --provenance=false \
+            --tag "$IMAGE:$GITHUB_SHA" \
+            --tag "$IMAGE:latest" \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --cache-from "type=registry,ref=$IMAGE:buildcache" \
+            --cache-to "type=registry,ref=$IMAGE:buildcache,mode=max"
+
+  deploy:
+    name: Deploy to VPS
+    needs: image
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    env:
+      DEPLOY_PATH: /opt/chatbot
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          PORT: ${{ secrets.VPS_PORT || '22' }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$HOST" ] || [ -z "$USER" ]; then
+            echo "::error::Set the VPS_HOST, VPS_USER and VPS_SSH_KEY repository secrets (see docs/HOSTINGER-VPS.md)."
+            exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning::VPS_KNOWN_HOSTS is not set; trusting the host key on first use."
+            ssh-keyscan -p "$PORT" -H "$HOST" > ~/.ssh/known_hosts
+          fi
+          {
+            echo "Host vps"
+            echo "  HostName $HOST"
+            echo "  User $USER"
+            echo "  Port $PORT"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  IdentitiesOnly yes"
+            echo "  ServerAliveInterval 30"
+          } > ~/.ssh/config
+
+      - name: Upload deployment files
+        run: scp deploy/docker-compose.yml deploy/Caddyfile deploy/remote-deploy.sh deploy/backup.sh "vps:$DEPLOY_PATH/"
+
+      - name: Pull the new image and restart
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: printf '%s\n' "$TOKEN" | ssh vps "bash $DEPLOY_PATH/remote-deploy.sh '$IMAGE' '$GITHUB_SHA' '$ACTOR'"
+
+      - name: Check the public site
+        if: vars.APP_DOMAIN != ''
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fsS "https://${{ vars.APP_DOMAIN }}/health"; then echo; exit 0; fi
+            sleep 6
+          done
+          echo "::error::https://${{ vars.APP_DOMAIN }}/health did not respond. Check DNS, ports 80/443 and 'docker compose logs caddy' on the server."
+          exit 1

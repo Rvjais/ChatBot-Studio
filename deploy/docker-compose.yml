@@ -1,0 +1,76 @@
+# Production stack for a single VPS (e.g. Hostinger):
+#   app   — API + dashboard + widget.js (image built by GitHub Actions)
+#   mongo — MongoDB with authentication; NOT published to the internet
+#   caddy — HTTPS reverse proxy with automatic Let's Encrypt certificates
+#
+# All values come from the .env file in this directory (created by setup-server.sh).
+# GitHub Actions copies this file to the server on every deploy; never edit it on the server.
+name: chatbot
+
+services:
+  app:
+    image: ${APP_IMAGE:-app-image-not-deployed-yet}:${APP_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      SERVE_CLIENT: "true"
+      TRUST_PROXY: "1"
+      UPLOAD_DIR: /data/uploads
+      PUBLIC_API_URL: https://${DOMAIN}
+      CLIENT_URL: https://${DOMAIN}
+      MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/chatbot_builder?authSource=admin
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  mongo:
+    image: mongo:8.0
+    restart: unless-stopped
+    command: ["mongod", "--wiredTigerCacheSizeGB", "${MONGO_CACHE_GB:-1}"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  uploads: {}
+  mongo-data: {}
+  caddy-data: {}
+  caddy-config: {}

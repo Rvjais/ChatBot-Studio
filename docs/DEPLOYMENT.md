@@ -66,17 +66,15 @@ location / {
 }
 ```
 
-### Docker (example)
-```dockerfile
-FROM node:22-alpine
-WORKDIR /app
-COPY . .
-RUN npm ci && npm run build && npm prune --omit=dev
-ENV NODE_ENV=production SERVE_CLIENT=true
-EXPOSE 4000
-CMD ["node", "server/dist/server.js"]
-```
-Pass the environment variables with `--env-file` (or your orchestrator's secrets) and mount a volume for `UPLOAD_DIR` (a relative `UPLOAD_DIR` is resolved from the `server/` directory). The server locates `server/.env`, `widget/dist` and `client/dist` relative to its own package, so the working directory does not matter.
+### Docker
+The repository's `Dockerfile` builds a production image (API + dashboard + `widget.js`, non-root user,
+built-in health check). `deploy/docker-compose.yml` runs it with MongoDB and Caddy (automatic HTTPS), and
+`.github/workflows/ci-cd.yml` tests, builds and deploys it on every push to `main`.
+**Step-by-step VPS guide (Hostinger or any Ubuntu server): [HOSTINGER-VPS.md](HOSTINGER-VPS.md).**
+
+Without Compose: `docker run -p 4000:4000 --env-file server.env -v uploads:/data/uploads <image>`
+(the image sets `NODE_ENV=production`, `SERVE_CLIENT=true` and `UPLOAD_DIR=/data/uploads`). The server locates
+`server/.env`, `widget/dist` and `client/dist` relative to its own package, so the working directory does not matter.
 
 ## 4. Vector search at scale (optional)
 

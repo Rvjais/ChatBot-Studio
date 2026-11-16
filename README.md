@@ -61,6 +61,9 @@ Then: register in the dashboard → create a chatbot → **AI Settings**: choose
 | `npm run test:e2e -w widget` | Real-browser test of the embed on a plain HTML page from another origin (build the widget first) |
 | `npm run typecheck` | Type-check all packages |
 
+**Deployment:** push to `main` → GitHub Actions runs everything above, builds a Docker image and deploys it to
+your server (`.github/workflows/ci-cd.yml`, `Dockerfile`, `deploy/`). See [docs/HOSTINGER-VPS.md](docs/HOSTINGER-VPS.md).
+
 ## Testing
 
 - **Server (94 tests)** — `server/tests`: auth & token revocation, platform limits, chatbot CRUD/duplicate/cascade, a cross-tenant attack matrix (every private endpoint returns 404 for another user), API-key encryption and non-disclosure, all six provider adapters over real HTTP against a wire-format mock (OpenAI, Anthropic via the official SDK, Gemini, OpenRouter, DeepSeek, custom), retries and error mapping, real PDF/DOCX/XLSX/CSV/JSON/TXT processing, hybrid RAG and knowledge isolation, prompt-injection delimiter neutralization, product imports, product updates round-tripping the API's own shape, the example product questions, price guard, widget config/chat/SSE/conversation restore, page-provided products and conflicts, domain restrictions, sync API, analytics and cost accounting.
@@ -90,6 +93,7 @@ docs/     API reference, embedding guide, deployment, models, development checkl
 
 - [docs/API.md](docs/API.md) — REST API reference
 - [docs/EMBEDDING.md](docs/EMBEDDING.md) — installing the widget, product data, styling, domain restrictions
+- [docs/HOSTINGER-VPS.md](docs/HOSTINGER-VPS.md) — hosting on a VPS with Docker, HTTPS and automatic deploys from GitHub
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production configuration, worker, reverse proxy, Atlas vector search, security checklist
 - [docs/MODELS.md](docs/MODELS.md) — providers, model catalog, cost accounting, adding a provider
 - [docs/CHECKLIST.md](docs/CHECKLIST.md) — development checklist by phase
