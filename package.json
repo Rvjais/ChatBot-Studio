@@ -1,0 +1,25 @@
+{
+  "name": "ai-chatbot-builder",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Multi-tenant AI chatbot builder: dashboard, API server, and embeddable widget",
+  "workspaces": [
+    "server",
+    "client",
+    "widget"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client,widget -c blue,green,magenta \"npm run dev -w server\" \"npm run dev -w client\" \"npm run dev -w widget\"",
+    "build": "npm run build -w widget && npm run build -w server && npm run build -w client",
+    "start": "npm run start -w server",
+    "worker": "npm run worker -w server",
+    "test": "npm run test -w server && npm run test -w widget",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client && npm run typecheck -w widget"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

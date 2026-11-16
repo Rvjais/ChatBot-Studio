@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+server/uploads/
+server/.data/
+coverage/
+.DS_Store
+widget/tests/e2e/screenshots/
+.server-dev.log
