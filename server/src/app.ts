@@ -109,9 +109,13 @@ window.AIChatbotConfig = {
   });
 
   // ── Public widget API: any origin may call it; per-chatbot domain rules apply ──
+  // `Access-Control-Allow-Origin: *` (not the reflected origin): the widget never sends cookies or
+  // credentials, and allowed-domain restrictions are enforced server-side from the Origin/Referer
+  // headers. A wildcard also needs no `Vary: Origin` and survives reverse proxies that mishandle
+  // reflected origins (OpenLiteSpeed/CyberPanel was observed doubling them, which browsers reject).
   app.use(
     '/api/widget',
-    cors({ origin: true, credentials: false, methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type'], maxAge: 600 }),
+    cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type'], maxAge: 600 }),
     express.json({ limit: Math.max(64 * 1024, env.WIDGET_MAX_PRODUCTS_BYTES * 2) }),
     sanitizeRequest,
     widgetRouter(),

@@ -25,7 +25,8 @@ describe('widget configuration', () => {
     const { token, chatbot } = await bot({ welcomeMessage: 'Hello shopper!', widget: { primaryColor: '#123456', suggestedQuestions: ['Do you ship?'] } });
     const res = await ctx.api.get(`/api/widget/config/${chatbot.publicId}`).set('Origin', 'https://any-site.com');
     expect(res.status).toBe(200);
-    expect(res.headers['access-control-allow-origin']).toBe('https://any-site.com');
+    expect(res.headers['access-control-allow-origin']).toBe('*');
+    expect(res.headers['cache-control']).toBe('private, max-age=60');
     expect(res.body.config).toMatchObject({
       publicId: chatbot.publicId,
       welcomeMessage: 'Hello shopper!',
@@ -36,6 +37,27 @@ describe('widget configuration', () => {
     expect((await ctx.api.get(`/api/widget/config/${chatbot.publicId}`)).status).toBe(404);
     expect((await ctx.api.get('/api/widget/config/cb_doesnotexist000000000')).status).toBe(404);
     expect((await ctx.api.get('/api/widget/config/..%2F..%2Fetc')).status).toBe(404);
+  });
+
+  it('sends one wildcard CORS header (no reflected origin) on every widget endpoint', async () => {
+    const { chatbot } = await bot();
+    const responses = await Promise.all([
+      ctx.api.get(`/api/widget/config/${chatbot.publicId}`).set('Origin', 'https://shop.example'),
+      ctx.api.get('/api/widget/config/cb_AAAAAAAAAAAAAAAAAAAA').set('Origin', 'https://shop.example'),
+      ctx.api
+        .options('/api/widget/chat')
+        .set('Origin', 'https://shop.example')
+        .set('Access-Control-Request-Method', 'POST')
+        .set('Access-Control-Request-Headers', 'content-type'),
+    ]);
+    for (const res of responses) {
+      // Duplicated headers would be joined as "x, x" here — browsers reject that.
+      expect(res.headers['access-control-allow-origin']).toBe('*');
+      expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+      expect(String(res.headers.vary ?? '')).not.toMatch(/origin/i);
+    }
+    expect(responses[2]!.status).toBe(204);
+    expect(responses[2]!.headers['access-control-allow-headers']).toBe('Content-Type');
   });
 
   it('enforces allowed domains via Origin/Referer when enabled', async () => {

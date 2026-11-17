@@ -230,7 +230,8 @@ Conversation/message counts exclude dashboard test chats; token usage includes t
 
 ## Public widget API
 
-CORS is open; per-chatbot **allowed domains** are enforced via the `Origin`/`Referer` header when enabled.
+CORS is open (`Access-Control-Allow-Origin: *`; the widget never sends credentials). Per-chatbot **allowed domains**
+are enforced server-side from the `Origin`/`Referer` header when enabled — a blocked site gets `403 DOMAIN_NOT_ALLOWED`.
 
 | Method | Path | Body / Query | Response |
 |---|---|---|---|

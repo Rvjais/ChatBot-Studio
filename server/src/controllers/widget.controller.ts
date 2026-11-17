@@ -12,7 +12,9 @@ export async function getConfig(req: Request, res: Response) {
   const chatbot = await loadPublicChatbot(String(req.params.publicId));
   const { origin, referer } = originOf(req);
   assertOriginAllowed(chatbot, origin, referer);
-  res.setHeader('Cache-Control', 'public, max-age=60');
+  // Browser-only caching: the answer can depend on the requesting site (allowed domains), and
+  // browser caches are partitioned per site, so no shared cache may store it.
+  res.setHeader('Cache-Control', 'private, max-age=60');
   res.json({ config: publicWidgetConfig(chatbot) });
 }
 
