@@ -199,6 +199,13 @@ describe('embed snippet and static assets', () => {
     const embed = await ctx.api.get(`/api/chatbots/${chatbot.id}/embed`).set(auth(token));
     expect(embed.body.snippets.basic).toContain(`chatbotId: "${chatbot.publicId}"`);
     expect(embed.body.snippets.basic).toContain('/widget.js');
+    // Plain React (no Next.js) component and a separate Next.js snippet.
+    expect(embed.body.snippets.react).toContain('useEffect');
+    expect(embed.body.snippets.react).toContain(`chatbotId: "${chatbot.publicId}"`);
+    expect(embed.body.snippets.react).toContain('/widget.js');
+    expect(embed.body.snippets.react).not.toContain('next/script');
+    expect(embed.body.snippets.nextjs).toContain('next/script');
+    expect(embed.body.snippets.nextjs).toContain(`chatbotId: "${chatbot.publicId}"`);
     expect(JSON.stringify(embed.body)).not.toContain('test-key-openai');
     const page = await ctx.api.get(`/embed-test/${chatbot.publicId}`);
     expect(page.status).toBe(200);

@@ -24,7 +24,7 @@ Paste before `</body>` on every page where the chat should appear:
 | WordPress | Theme footer (`footer.php`) or a header/footer scripts plugin, "Footer" section |
 | Shopify | *Online Store → Themes → Edit code → `layout/theme.liquid`*, before `</body>` |
 | Next.js | `next/script` in `app/layout.tsx` (snippet in the Embed tab) |
-| React (Vite/CRA) | `index.html` before `</body>`, or inject the two scripts in a top-level `useEffect` |
+| React (Vite/CRA) | `<ChatbotWidget />` component from the **React** snippet in the Embed tab, rendered once in your root `App` (or paste the Basic snippet into `index.html` before `</body>`) |
 | Webflow / Wix / Squarespace | "Custom code" → footer code |
 
 To test without touching your site, open the **standalone test page** linked in the Embed tab (`/embed-test/<publicId>`).

@@ -305,7 +305,7 @@ export interface EmbedInfo {
   widgetUrl: string;
   apiBase: string;
   testPageUrl: string;
-  snippets: { basic: string; withProducts: string; customStyling: string; javascriptApi: string; react: string };
+  snippets: { basic: string; withProducts: string; customStyling: string; javascriptApi: string; react: string; nextjs: string };
 }
 
 export interface WidgetPublicConfig {

@@ -82,7 +82,7 @@ A chatbot that exists but belongs to another user returns `404` — never `403` 
 | POST | `/api/chatbots/:id/test-provider` | `{ target: 'chat'\|'embedding', override?: AiConfigUpdate }` | `{ ok, latencyMs, message, model?, sample?, usage?, dimensions? }` |
 | POST | `/api/chatbots/:id/models` | `{ provider?, apiKey?, baseUrl? }` | `{ models: [{ id, label, type, contextWindow?, maxOutputTokens?, pricing? }] }` (live from provider) |
 | POST | `/api/chatbots/:id/preview-chat` | `{ message, conversationId?, products?, stream? }` | see *Chat responses* (includes `debug`) |
-| GET | `/api/chatbots/:id/embed` | – | `{ publicId, widgetUrl, apiBase, testPageUrl, snippets: { basic, withProducts, customStyling, javascriptApi, react } }` |
+| GET | `/api/chatbots/:id/embed` | – | `{ publicId, widgetUrl, apiBase, testPageUrl, snippets: { basic, withProducts, customStyling, javascriptApi, react, nextjs } }` |
 | POST | `/api/chatbots/:id/sync-key` | – | `201 { key, message }` (key shown once) |
 | DELETE | `/api/chatbots/:id/sync-key` | – | `204` |
 | GET | `/api/chatbots/:id/analytics?days=30` | – | same as `/api/analytics/chatbots/:id` |

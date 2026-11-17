@@ -21,14 +21,15 @@ import { useAsync } from '../../hooks/useAsync';
 import { chatbotsApi } from '../../services/chatbots';
 import { formatNumber } from '../../utils/format';
 
-type SnippetKey = 'basic' | 'withProducts' | 'customStyling' | 'javascriptApi' | 'react';
+type SnippetKey = 'basic' | 'withProducts' | 'customStyling' | 'javascriptApi' | 'react' | 'nextjs';
 
 const SNIPPETS: { key: SnippetKey; label: string; title: string; language: string }[] = [
   { key: 'basic', label: 'Basic', title: 'Paste before </body>', language: 'html' },
   { key: 'withProducts', label: 'With products', title: 'Pass the products shown on the page', language: 'html' },
   { key: 'customStyling', label: 'Custom styling', title: 'Per-page overrides', language: 'html' },
   { key: 'javascriptApi', label: 'JavaScript API', title: 'Control the widget from your code', language: 'js' },
-  { key: 'react', label: 'React / Next.js', title: 'app/layout.tsx', language: 'tsx' },
+  { key: 'react', label: 'React', title: 'src/components/ChatbotWidget.jsx', language: 'jsx' },
+  { key: 'nextjs', label: 'Next.js', title: 'app/layout.tsx', language: 'tsx' },
 ];
 
 function DocSection({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
@@ -135,8 +136,12 @@ export function EmbedTab() {
                 <InlineCode>{'</body>'}</InlineCode>.
               </li>
               <li>
-                <strong>React / Next.js:</strong> use the React snippet (Next.js <InlineCode>Script</InlineCode> component), or in a plain React app set{' '}
-                <InlineCode>window.AIChatbotConfig</InlineCode> and append the script tag inside a <InlineCode>useEffect</InlineCode> once on mount.
+                <strong>React (Vite / CRA):</strong> copy the <strong>React</strong> snippet into <InlineCode>src/components/ChatbotWidget.jsx</InlineCode> and render{' '}
+                <InlineCode>{'<ChatbotWidget />'}</InlineCode> once in your root <InlineCode>App</InlineCode> component.
+              </li>
+              <li>
+                <strong>Next.js:</strong> use the <strong>Next.js</strong> snippet in <InlineCode>app/layout.tsx</InlineCode> (it uses the{' '}
+                <InlineCode>next/script</InlineCode> component).
               </li>
             </ul>
           </DocSection>

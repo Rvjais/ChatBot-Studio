@@ -58,7 +58,47 @@ window.AIChatbot.resetConversation();
 // Or wait for it:
 window.addEventListener("aichatbot:ready", function () { /* ... */ });`;
 
-  const react = `// Next.js (app router): app/layout.tsx
+  const react = `// src/components/ChatbotWidget.jsx  (or .tsx — no type declarations needed)
+import { useEffect } from "react";
+
+const WIDGET_SRC = "${src}";
+
+export default function ChatbotWidget() {
+  useEffect(() => {
+    // Load the widget once per page, even if this component mounts again
+    // (React StrictMode in development, layout re-renders, route changes).
+    if (document.querySelector(\`script[src="\${WIDGET_SRC}"]\`)) return;
+
+    Object.assign(window, {
+      AIChatbotConfig: {
+        chatbotId: "${id}",
+        theme: "${theme}"
+      }
+    });
+
+    const script = document.createElement("script");
+    script.src = WIDGET_SRC;
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
+
+  return null; // the widget renders its own floating chat bubble
+}
+
+// Then render it ONCE at the root of your app, e.g. src/App.jsx:
+//
+//   import ChatbotWidget from "./components/ChatbotWidget";
+//
+//   export default function App() {
+//     return (
+//       <>
+//         {/* ...your routes / pages... */}
+//         <ChatbotWidget />
+//       </>
+//     );
+//   }`;
+
+  const nextjs = `// Next.js (app router): app/layout.tsx
 import Script from "next/script";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -80,6 +120,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     widgetUrl: src,
     apiBase: env.PUBLIC_API_URL,
     testPageUrl: `${env.PUBLIC_API_URL}/embed-test/${id}`,
-    snippets: { basic, withProducts, customStyling, javascriptApi, react },
+    snippets: { basic, withProducts, customStyling, javascriptApi, react, nextjs },
   };
 }
